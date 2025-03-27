@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自定义水壶谜题</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .config-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .game-area {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+            position: relative;
+        }
+
+        .jug-list {
+            display: flex;
+            flex-direction: row;
+            gap: 15px;
+            max-width: calc(100vh - 100px);
+            overflow-x: auto;
+            padding-right: 10px;
+        }
+
+        .jug-card {
+            width: 125px;
+            height: 430px;
+            background: #fff;
+            border: 2px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 15px;
+            transition: transform 0.2s;
+        }
+
+        .jug-card:hover {
+            transform: translateY(-2px);
+            border-color: #2196F3;
+        }
+
+        .progress-bar {
+            width: 90px;
+            margin: 10px auto;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 100%;
+            border: 2px solid #333;
+            border-radius: 0 0 10px 10px;
+            background: linear-gradient(to top, #4CAF50 0%, #4CAF50 100%);
+            background-size: 100% 0%;
+            background-repeat: no-repeat;
+            background-position: bottom;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .jug-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            background: #2196F3;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover {
+            background: #1a73e8;
+        }
+
+        select {
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+        }
+
+        #undoSection {
+            position: sticky;
+            top: 0;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(5px);
+            padding: 12px 0;
+            z-index: 1;
+            margin-bottom: 15px;
+        }
+
+        .config-input-group {
+            margin: 10px 0;
+        }
+
+        input[type="number"] {
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 50px;
+        }
+
+        /* 原有样式保持不变，新增以下样式 */
+        .history-panel {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            width: 220px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 15px;
+            z-index: 100;
+            max-height: 60vh;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: bottom right;
+        }
+
+        .combination-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #combinationSearch {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .combinations-list {
+            flex: 1;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .combination-item {
+            padding: 6px;
+            border-radius: 4px;
+            margin: 2px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .combination-item:hover {
+            background: #f5f5f5;
+        }
+
+        .combination-count {
+            font-size: 0.8em;
+            color: #666;
+            margin-left: 8px;
+        }
+
+        .existed-hint {
+            animation: pulse 0.8s 3;
+            background: #fff9e6;
+        }
+
+        @keyframes pulse {
+            0% { background-color: transparent; }
+            50% { background-color: #fff3bf; }
+            100% { background-color: transparent; }
+        }
+
+        .history-badge {
+            position: fixed;
+            right: 25px;
+            bottom: calc(60vh - 30px);
+            background: #2196F3;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .history-panel.collapsed #toggleBtn {
+            transform: rotate(180deg);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .jug-list {
+                max-width: 60vh;
+            }
+        }
+
+        #fastMove{
+            background-color: #f5f5f5;
+            display: flex;
+            border:2px solid #f0f0f0;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        #fastMove>span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #fastMove>span>button{
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 配置面板 -->
+        <div class="config-panel">
+            <h2>游戏配置</h2>
+            <div class="config-input-group">
+                <label>水壶数量：</label>
+                <input type="number" id="jugCount" min="1" value="3">
+                <button onclick="generateConfig()">生成配置</button>
+            </div>
+            <div id="jugConfigs"></div>
+            <button 
+                onclick="initializeGame()" 
+                id="startButton" 
+                style="display: none; width: 100%; margin-top: 15px"
+            >
+                开始游戏
+            </button>
+            <div id="fastMove" style="display: none;">
+                快捷步骤 
+                <br>
+                <div style="color: gray; font-size: 10px;">(水壶为3时出现，用于模拟互动视频)</div>
+                <span>
+                    <button onclick="transferJug(0,2)">左杯 倒 右杯</button>
+                    <button onclick="transferJug(0,1)">左杯 倒 中杯</button>
+                </span>
+                <span>
+                    <button onclick="transferJug(1,0)">中杯 倒 左杯</button>
+                    <button onclick="transferJug(1,2)">中杯 倒 右杯</button>
+                </span>
+                <span>
+                    <button onclick="transferJug(2,0)">右杯 倒 左杯</button>
+                    <button onclick="transferJug(2,1)">右杯 倒 中杯</button>
+                </span>
+                <span>
+                    <button onclick="emptyJug(minI)">倒掉最小杯</button>
+                    <button onclick="fillJug(maxI)">装满最大杯</button>
+                </span>
+                <span>
+                    <span>倒掉: </span><span id="et">0</span>
+                    <span style="width: 50px;"></span>
+                    <span>装满: </span><span id="ft">0</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- 游戏区域 -->
+        <div class="game-area">
+            <div id="gameArea" style="display: none">
+                <div id="undoSection">
+                    <button onclick="undo()">
+                        <span>↩</span>
+                        <span>撤回（剩余 <span id="undoCounter">0</span> 次）</span>
+                    </button>
+                </div>
+                <div class="jug-list" id="jugsDisplay" style="display: flex;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="history-panel">
+        <div class="combination-header">
+            <button id="toggleBtn" onclick="toggleHistoryPanel()">▼</button>
+            <h4>组合历史</h4>
+            <span class="history-badge" id="historyCount">0</span>
+        </div>
+        <input type="text" id="combinationSearch" placeholder="搜索组合 (如 3_0 或 0>2)" 
+               oninput="filterCombinations(this.value)">
+        <div class="combinations-list" id="combinationsList"></div>
+    </div>
+
+    <script>
+        let combinationHistory = new Map(); // 记录组合出现次数
+        let currentCombination = "";
+        let lastExistedCombination = null;
+        let jugs = [];
+        let history = [];
+        let currentStep = 0;
+        let isPanelVisible = true;
+        let choosed = false;
+        let chooseJug = 0;
+        let min = 0;
+        let max = 0;
+        let minI = 0;
+        let maxI = 0;
+        let fillTimes = 0;
+        let emptyTimes = 0;
+        let fts = [];
+        let ets = [];
+
+        // 生成水壶配置界面
+        function generateConfig() {
+            const count = parseInt(document.getElementById('jugCount').value);
+            const configDiv = document.getElementById('jugConfigs');
+            configDiv.innerHTML = '';
+            
+            for (let i = 0; i < count; i++) {
+                const div = document.createElement('div');
+                div.className = 'config-input-group';
+                div.innerHTML = `
+                    <h4>水壶 ${i + 1}</h4>
+                    <label>容量 / 水量：<input type="number" class="jug-max" value="${5 + i}" min="1"></label>
+                    <label><input type="number" class="jug-initial" value="0" min="0"></label>
+                `;
+                configDiv.appendChild(div);
+            }
+            document.getElementById('startButton').style.display = 'block';
+        }
+
+        // 初始化游戏
+        function initializeGame() {
+            choosed = false;
+            const maxInputs = document.getElementsByClassName('jug-max');
+            const initialInputs = document.getElementsByClassName('jug-initial');
+            jugs = [];
+            maxC = -999;
+            fillTimes = 0;
+            emptyTimes = 0;
+            document.getElementById("ft").innerHTML = `${fillTimes}`;
+            document.getElementById("et").innerHTML = `${emptyTimes}`;
+            
+            for (let i = 0; i < maxInputs.length; i++) {
+                const max = parseInt(maxInputs[i].value);
+                const initial = parseInt(initialInputs[i].value);
+                
+                if (initial > max) {
+                    alert(`错误：水壶 ${i + 1} 的初始水量超过最大容量！`);
+                    return;
+                }
+                maxC = Math.max(maxC, max);
+                jugs.push({ max, current: initial });
+            }
+            if (jugs.length == 3) {
+                document.getElementById('fastMove').style.display = 'block';
+            }else{
+                document.getElementById('fastMove').style.display = 'none';
+            }
+            document.getElementById('gameArea').style.display = 'block';
+            resetHistory();
+            const displayDiv = document.getElementById('jugsDisplay');
+            displayDiv.innerHTML = '';
+            
+            jugs.forEach((jug, index) => {
+                const card = document.createElement('div');
+                card.className = 'jug-card';
+                card.id = `jug${index}`;
+                card.innerHTML = `
+                    <h3>水壶 ${index + 1}</h3>
+                    <div class="progress-container" style="height: 250px;">
+                        <div class="progress-bar" style="height: ${jug.max/maxC*250}px; top: ${250 - (jug.max/maxC*250)}px;">
+                            <div class="progress-fill" id="fi${index}"
+                                style="background-size: 100% ${(jug.current / jug.max) * 100}%;"></div>
+                        </div>
+                    </div>
+                    <div class="jug-status" id="st${index}">${jug.current} / ${jug.max}</div>
+                    <div class="jug-controls">
+                        <button onclick="fillJug(${index})">🔼 倒满</button>
+                        <button onclick="emptyJug(${index})">🔽 倒空</button>
+                    </div>
+                `;
+                displayDiv.appendChild(card);
+                document.getElementById('jug'+index).addEventListener('click', function () {
+                    jugClicked(index);
+                });
+
+            });
+            updateGameDisplay();
+            combinationHistory.clear();
+            updateHistoryDisplay();
+        }
+
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.code === 'Slash') {
+                toggleHistoryPanel();
+            }
+        });
+
+        function jugClicked(index) {
+            if (choosed) {
+                if (chooseJug !== index) {
+                    transferJug(chooseJug, index);
+                }
+                document.getElementById('jug'+chooseJug).style.backgroundColor = '#fff';
+                choosed = false;
+            }else{
+                choosed = true;
+                chooseJug = index;
+                document.getElementById('jug'+index).style.backgroundColor = '#f0f0f0';
+            }
+        }
+
+        // 切换函数
+        function toggleHistoryPanel() {
+            const panel = document.querySelector('.history-panel');
+            isPanelVisible = !isPanelVisible;
+            panel.style.transform = isPanelVisible 
+                ? 'translateY(0)' 
+                : 'translateY(calc(100% - 40px))';
+            localStorage.setItem('panelState', isPanelVisible);
+            panel.classList.toggle('collapsed');
+        }
+
+                // 在每次操作后调用（fillJug/emptyJug/transferJug）
+        function checkCombination() {
+            const state = jugs.map(j => j.current).join('_');
+            currentCombination = state;
+            
+            if (combinationHistory.has(state)) {
+                combinationHistory.set(state, combinationHistory.get(state) + 1);
+                highlightExistedCombination(state);
+            } else {
+                combinationHistory.set(state, 1);
+            }
+            
+            updateHistoryDisplay();
+        }
+
+        function highlightExistedCombination(state) {
+            const items = document.querySelectorAll('.combination-item');
+            items.forEach(item => {
+                if (item.dataset.state === state) {
+                    item.classList.add('existed-hint');
+                    setTimeout(() => item.classList.remove('existed-hint'), 2500);
+                }
+            });
+        }
+
+        function updateHistoryDisplay() {
+            const listDiv = document.getElementById('combinationsList');
+            const searchTerm = document.getElementById('combinationSearch').value.toLowerCase().replace(/\s/g, '');
+            
+            // 排序：最近出现的在前
+            const sortedCombinations = [...combinationHistory.entries()]
+                .sort((a, b) => b - a);
+            
+            listDiv.innerHTML = sortedCombinations
+                .filter(([state]) => searchTerm.split("+").reduce((acc, term) => 
+                    matchCombination(state, term) && acc,
+                    true
+                ))
+                .map(([state, count]) => `
+                    <div class="combination-item" data-state="${state}">
+                        <span>${state}</span>
+                        <span class="combination-count">×${count}</span>
+                    </div>`
+                ).join('');
+            
+            document.getElementById('historyCount').textContent = combinationHistory.size;
+        }
+
+        function matchCombination(state, term) {
+            if (!term) return true;
+            
+            try {
+                // 所有的查询语法：
+                // a<b<c： 查询位置为b的水壶中的水量大于a且小于c的所有历史组合，将b留空例如a<<c就能匹配任意位置
+                //      例如：如果要查询第2个水壶中的水量在3和5之间的所有历史组合，就直接输入3<1<5
+                //      注意：第一个水壶的位置是0，所以第2个水壶的位置是1
+
+                // a<b：查询位置为a的水壶中的水量小于b的所有历史组合，将a留空例如<5就能匹配任意位置
+                //      例如：如果要查询第1个水壶中的水量小于5的所有历史组合，就输入0<5
+
+                // a>b：与a<b相反
+
+                // *a 或 a*：查询由a开头 或 由a结尾的所有历史组合
+
+                // a：直接查询所有包含数字a的历史组合，a可以包含_，用来查询特定组合或多个连续的水壶
+                // p.s. 直接查询只要找到a就会显示，如果要查询1，所有10以上的都会显示出来，所以建议对于这类特殊数值，使用a-1<<a+1来查询
+                
+                // X+Y：同时执行X和Y的查询语法
+                //      例如：>2+5 就是查询任意水壶中的水大于2，且有一个水壶包含容量5的水的所有历史组合
+
+                if (term.split("<").length==3){
+                    const [min, index, max] = term.split('<');
+                    if (isNaN(index) || index==""){
+                        for (let i = 0; i < state.split('_').length; i++) {
+                            if (state.split('_')[i] < max && state.split('_')[i] > min) return true;
+                        }
+                    }else{
+                        return state.split('_')[index] < max && state.split('_')[index] > min;
+                    }
+                }
+                if (term.includes('>')) {
+                    const [index, value] = term.split('>');
+                    if (isNaN(index) || index==""){
+                        for (let i = 0; i < state.split('_').length; i++) {
+                            if (state.split('_')[i] > value) return true;
+                        }
+                    }else{
+                        return state.split('_')[index] > value;
+                    }
+                    
+                }
+                if (term.includes('<')) {
+                    const [index, value] = term.split('<');
+                    if (isNaN(index) || index==""){
+                        for (let i = 0; i < state.split('_').length; i++) {
+                            if (state.split('_')[i] < value) return true;
+                        }
+                    }else{
+                        return state.split('_')[index] < value;
+                    }
+                }
+                if (term.startsWith('*')) {
+                    return state.endsWith(term.slice(1));
+                }
+                if (term.endsWith('*')) {
+                    return state.startsWith(term.slice(0, -1));
+                }
+                return state.includes(term);
+            } catch {
+                return state.includes(term);
+            }
+        }
+
+        function filterCombinations(value) {
+            updateHistoryDisplay();
+        }
+
+        // 历史记录管理
+        function resetHistory() {
+            history = [jugs.map(j => ({...j}))];
+            currentStep = 1;
+            fts = [0];
+            ets = [0];
+            updateUndoCounter();
+        }
+
+        function saveState() {
+            history = history.slice(0, currentStep);
+            history.push(jugs.map(j => ({...j})));
+            fts = fts.slice(0, currentStep);
+            ets = ets.slice(0, currentStep);
+            fts.push(fillTimes);
+            ets.push(emptyTimes);
+            currentStep++;
+            updateUndoCounter();
+        }
+
+        function undo() {
+            if (currentStep > 1) {
+                currentStep--;
+                jugs = history[currentStep - 1].map(j => ({...j}));
+                fillTimes = fts[currentStep - 1];
+                emptyTimes = ets[currentStep - 1];
+                document.getElementById("ft").innerHTML = `${fillTimes}`;
+                document.getElementById("et").innerHTML = `${emptyTimes}`;
+                updateGameDisplay();
+                updateUndoCounter();
+            }
+        }
+
+        function updateUndoCounter() {
+            document.getElementById('undoCounter').textContent = currentStep - 1;
+        }
+
+        // 更新游戏界面
+        function updateGameDisplay() {
+            min = 999999999;
+            max = -999999999;
+            
+            jugs.forEach((jug, index) => {
+                if (jug.current > max && jug.current < jugs[index].max){
+                    max = jug.current;
+                    maxI = index;
+                }
+                if (jug.current < min && jug.current > 0){
+                    min = jug.current;
+                    minI = index;
+                }
+                document.getElementById("st"+index).innerHTML = `${jug.current} / ${jug.max}`;
+                document.getElementById("fi"+index).style.backgroundSize = `100% ${(jug.current / jug.max) * 100}%`;
+            });
+        }
+
+        // 水壶操作函数
+        function fillJug(index) {
+            fillTimes++;
+            document.getElementById("ft").innerHTML = `${fillTimes}`;
+            jugs[index].current = jugs[index].max;
+            saveState();
+            updateGameDisplay();
+            checkCombination();
+        }
+
+        function emptyJug(index) {
+            emptyTimes++;
+            document.getElementById("et").innerHTML = `${emptyTimes}`;
+            jugs[index].current = 0;
+            saveState();
+            updateGameDisplay();
+            checkCombination();
+        }
+
+        function transferJug(fromIndex,toIndex) {
+            const transferAmount = Math.min(
+                jugs[fromIndex].current,
+                jugs[toIndex].max - jugs[toIndex].current
+            );
+            
+            jugs[fromIndex].current -= transferAmount;
+            jugs[toIndex].current += transferAmount;
+            saveState();
+            updateGameDisplay();
+            checkCombination();
+        }
+    </script>
+</body>
+</html>
